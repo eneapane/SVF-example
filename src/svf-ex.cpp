@@ -180,6 +180,18 @@ int main(int argc, char ** argv)
         for (const auto &nodeId: pts) {
             auto node = pag->getGNode(nodeId);
             cout << node->toString() << endl;
+        }    
+        int i = 0;
+        if (pag->getFunArgsMap().find(function) != pag->getFunArgsMap().end()) {
+            for (const auto &item: pag->getFunArgsList(function)) {
+                auto pts2 = ander->getPts(item->getId());
+                cout << "arg " << i << " pts of function  size: " << pts2.count() << endl;
+                for (const auto &nodeId: pts2) {
+                    auto node = pag->getGNode(nodeId);
+                    cout << node->toString() << endl;
+                }
+                i++;
+            }
         }
     }
     /// Call Graph
