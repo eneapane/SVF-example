@@ -202,7 +202,7 @@ int main(int argc, char ** argv)
     /// traverseOnICFG(icfg, value);
 
     // clean up memory
-    delete vfg;
+    // delete vfg;
     AndersenWaveDiff::releaseAndersenWaveDiff();
     SVFIR::releaseSVFIR();
 
