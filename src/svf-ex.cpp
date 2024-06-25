@@ -173,19 +173,27 @@ int main(int argc, char ** argv)
 
     /// Print points-to information
     /// printPts(ander, value1);
-
+    for (auto &function: svfModule->getFunctionSet()) {
+        NodeID returnNode = pag->getReturnNode(function);
+        auto pts = ander->getPts(returnNode);
+        cout << "return value pts of function " << function->toString() << endl << " size: " << pts.count() << endl;
+        for (const auto &nodeId: pts) {
+            auto node = pag->getGNode(nodeId);
+            cout << node->toString() << endl;
+        }
+    }
     /// Call Graph
-    PTACallGraph* callgraph = ander->getPTACallGraph();
+    // PTACallGraph* callgraph = ander->getPTACallGraph();
 
     /// ICFG
-    ICFG* icfg = pag->getICFG();
+    // ICFG* icfg = pag->getICFG();
 
     /// Value-Flow Graph (VFG)
-    VFG* vfg = new VFG(callgraph);
+    // VFG* vfg = new VFG(callgraph);
 
     /// Sparse value-flow graph (SVFG)
-    SVFGBuilder svfBuilder;
-    SVFG* svfg = svfBuilder.buildFullSVFG(ander);
+    // SVFGBuilder svfBuilder;
+    // SVFG* svfg = svfBuilder.buildFullSVFG(ander);
 
     /// Collect uses of an LLVM Value
     /// traverseOnVFG(svfg, value);
