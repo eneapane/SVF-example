@@ -31,11 +31,13 @@
 #include "WPA/Andersen.h"
 #include "SVF-LLVM/SVFIRBuilder.h"
 #include "Util/Options.h"
+#include <fstream>
+#include <filesystem>
 
 using namespace llvm;
 using namespace std;
 using namespace SVF;
-
+namespace fs = std::filesystem;
 /*!
  * An example to query alias results of two LLVM values
  */
@@ -146,6 +148,57 @@ void traverseOnVFG(const SVFG* vfg, Value* val)
     }
 }
 
+
+void dump_points_to(const SVFModule* svfModule, SVFIR* pag, Andersen* ander, const std::string& filename) {
+    // Extract the directory from the filename
+    fs::path filePath(filename);
+    fs::path dirPath = filePath.parent_path();
+
+    // Create the directory if it does not exist
+    if (!fs::exists(dirPath)) {
+        if (!fs::create_directories(dirPath)) {
+            std::cerr << "Failed to create directory: " << dirPath.string() << std::endl;
+            return;
+        }
+    }
+
+    // Open the file for writing
+    std::ofstream outFile(filename);
+    if (!outFile.is_open()) {
+        std::cerr << "Failed to open file: " + filename << std::endl;
+        return;
+    }
+
+    // Write to the file
+    for (const auto& function : svfModule->getFunctionSet()) {
+        NodeID returnNode = pag->getReturnNode(function);
+        auto pts = ander->getPts(returnNode);
+        outFile << "return value pts of function " << function->toString() << " -> size: " << pts.count() << '\n';
+        for (const auto& nodeId : pts) {
+            auto node = pag->getGNode(nodeId);
+            outFile << "\t" << node->toString() << '\n';
+        }
+
+        int i = 0;
+        if (pag->getFunArgsMap().find(function) != pag->getFunArgsMap().end()) {
+            for (const auto& item : pag->getFunArgsList(function)) {
+                auto pts2 = ander->getPts(item->getId());
+                outFile << "arg " << i << " pts of function -> size: " << pts2.count() << '\n';
+                for (const auto& nodeId : pts2) {
+                    auto node = pag->getGNode(nodeId);
+                    outFile << "\t" << node->toString() << '\n';
+                }
+                i++;
+            }
+        }
+        outFile << '\n';
+    }
+
+    // Close the file
+    outFile.close();
+}
+
+
 int main(int argc, char ** argv)
 {
 
@@ -154,6 +207,7 @@ int main(int argc, char ** argv)
             argc, argv, "Whole Program Points-to Analysis", "[options] <input-bitcode...>"
     );
 
+    cout << "DEBUG - The value of Options::WriteAnder() is " << Options::WriteAnder() << endl;
     if (Options::WriteAnder() == "ir_annotator")
     {
         LLVMModuleSet::preProcessBCs(moduleNameVec);
@@ -173,33 +227,16 @@ int main(int argc, char ** argv)
 
     /// Print points-to information
     /// printPts(ander, value1);
-    for (auto &function: svfModule->getFunctionSet()) {
-        NodeID returnNode = pag->getReturnNode(function);
-        auto pts = ander->getPts(returnNode);
-        cout << "return value pts of function " << function->toString() << " -> size: " << pts.count() << endl;
-        for (const auto &nodeId: pts) {
-            auto node = pag->getGNode(nodeId);
-            cout << "\t" << node->toString() << endl;
-        }    
-        int i = 0;
-        if (pag->getFunArgsMap().find(function) != pag->getFunArgsMap().end()) {
-            for (const auto &item: pag->getFunArgsList(function)) {
-                auto pts2 = ander->getPts(item->getId());
-                cout << "arg " << i << " pts of function -> size: " << pts2.count() << endl;
-                for (const auto &nodeId: pts2) {
-                    auto node = pag->getGNode(nodeId);
-                    cout << "\t" << node->toString() << endl;
-                }
-                i++;
-            }
-        }
-        cout << endl;
-    }
+    std::string filename = "/app/output/ex";
+    dump_points_to(svfModule, pag, ander, filename + "_points_to_analysis");
     // Call Graph
     PTACallGraph* callgraph = ander->getPTACallGraph();
+    callgraph->dump(filename + "_call_graph");
 
-    std::string filename = "/app/output/ex_call_graph";  // Ensure this is a valid filename
-    callgraph->dump(filename);
+    cout << endl << "DEBUG - Printing all functions in " << argv[1] << endl;
+    for (const auto& function : svfModule->getFunctionSet()){
+        cout << function->toString() << endl;
+    }
 
     /// ICFG
     // ICFG* icfg = pag->getICFG();
