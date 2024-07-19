@@ -176,26 +176,30 @@ int main(int argc, char ** argv)
     for (auto &function: svfModule->getFunctionSet()) {
         NodeID returnNode = pag->getReturnNode(function);
         auto pts = ander->getPts(returnNode);
-        cout << "return value pts of function " << function->toString() << endl << " size: " << pts.count() << endl;
+        cout << "return value pts of function " << function->toString() << " -> size: " << pts.count() << endl;
         for (const auto &nodeId: pts) {
             auto node = pag->getGNode(nodeId);
-            cout << node->toString() << endl;
+            cout << "\t" << node->toString() << endl;
         }    
         int i = 0;
         if (pag->getFunArgsMap().find(function) != pag->getFunArgsMap().end()) {
             for (const auto &item: pag->getFunArgsList(function)) {
                 auto pts2 = ander->getPts(item->getId());
-                cout << "arg " << i << " pts of function  size: " << pts2.count() << endl;
+                cout << "arg " << i << " pts of function -> size: " << pts2.count() << endl;
                 for (const auto &nodeId: pts2) {
                     auto node = pag->getGNode(nodeId);
-                    cout << node->toString() << endl;
+                    cout << "\t" << node->toString() << endl;
                 }
                 i++;
             }
         }
+        cout << endl;
     }
-    /// Call Graph
-    // PTACallGraph* callgraph = ander->getPTACallGraph();
+    // Call Graph
+    PTACallGraph* callgraph = ander->getPTACallGraph();
+
+    std::string filename = "/app/output/ex_call_graph";  // Ensure this is a valid filename
+    callgraph->dump(filename);
 
     /// ICFG
     // ICFG* icfg = pag->getICFG();
