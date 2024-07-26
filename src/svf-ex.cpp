@@ -33,135 +33,15 @@
 #include "Util/Options.h"
 #include <fstream>
 #include <filesystem>
+#include <vector>
+#include <sstream>
 
 using namespace llvm;
 using namespace std;
 using namespace SVF;
 namespace fs = std::filesystem;
-/*!
- * An example to query alias results of two LLVM values
- */
-SVF::AliasResult aliasQuery(PointerAnalysis* pta, Value* v1, Value* v2)
-{
-    SVFValue* val1 = LLVMModuleSet::getLLVMModuleSet()->getSVFValue(v1);
-    SVFValue* val2 = LLVMModuleSet::getLLVMModuleSet()->getSVFValue(v2);
-
-    return pta->alias(val1,val2);
-}
-
-/*!
- * An example to print points-to set of an LLVM value
- */
-std::string printPts(PointerAnalysis* pta, Value* val)
-{
-
-    std::string str;
-    raw_string_ostream rawstr(str);
-    SVFValue* svfval = LLVMModuleSet::getLLVMModuleSet()->getSVFValue(val);
-
-    NodeID pNodeId = pta->getPAG()->getValueNode(svfval);
-    const PointsTo& pts = pta->getPts(pNodeId);
-    for (PointsTo::iterator ii = pts.begin(), ie = pts.end();
-            ii != ie; ii++)
-    {
-        rawstr << " " << *ii << " ";
-        PAGNode* targetObj = pta->getPAG()->getGNode(*ii);
-        if(targetObj->hasValue())
-        {
-            rawstr << "(" << targetObj->getValue()->toString() << ")\t ";
-        }
-    }
-
-    return rawstr.str();
-
-}
-
-
-/*!
- * An example to query/collect all successor nodes from a ICFGNode (iNode) along control-flow graph (ICFG)
- */
-void traverseOnICFG(ICFG* icfg, const Instruction* inst)
-{
-    SVFInstruction* svfinst = LLVMModuleSet::getLLVMModuleSet()->getSVFInstruction(inst);
-
-    ICFGNode* iNode = icfg->getICFGNode(svfinst);
-    FIFOWorkList<const ICFGNode*> worklist;
-    Set<const ICFGNode*> visited;
-    worklist.push(iNode);
-
-    /// Traverse along VFG
-    while (!worklist.empty())
-    {
-        const ICFGNode* iNode = worklist.pop();
-        for (ICFGNode::const_iterator it = iNode->OutEdgeBegin(), eit =
-                    iNode->OutEdgeEnd(); it != eit; ++it)
-        {
-            ICFGEdge* edge = *it;
-            ICFGNode* succNode = edge->getDstNode();
-            if (visited.find(succNode) == visited.end())
-            {
-                visited.insert(succNode);
-                worklist.push(succNode);
-            }
-        }
-    }
-}
-
-/*!
- * An example to query/collect all the uses of a definition of a value along value-flow graph (VFG)
- */
-void traverseOnVFG(const SVFG* vfg, Value* val)
-{
-    SVFIR* pag = SVFIR::getPAG();
-    SVFValue* svfval = LLVMModuleSet::getLLVMModuleSet()->getSVFValue(val);
-
-    PAGNode* pNode = pag->getGNode(pag->getValueNode(svfval));
-    const VFGNode* vNode = vfg->getDefSVFGNode(pNode);
-    FIFOWorkList<const VFGNode*> worklist;
-    Set<const VFGNode*> visited;
-    worklist.push(vNode);
-
-    /// Traverse along VFG
-    while (!worklist.empty())
-    {
-        const VFGNode* vNode = worklist.pop();
-        for (VFGNode::const_iterator it = vNode->OutEdgeBegin(), eit =
-                    vNode->OutEdgeEnd(); it != eit; ++it)
-        {
-            VFGEdge* edge = *it;
-            VFGNode* succNode = edge->getDstNode();
-            if (visited.find(succNode) == visited.end())
-            {
-                visited.insert(succNode);
-                worklist.push(succNode);
-            }
-        }
-    }
-
-    /// Collect all LLVM Values
-    for(Set<const VFGNode*>::const_iterator it = visited.begin(), eit = visited.end(); it!=eit; ++it)
-    {
-        const VFGNode* node = *it;
-        /// can only query VFGNode involving top-level pointers (starting with % or @ in LLVM IR)
-        /// PAGNode* pNode = vfg->getLHSTopLevPtr(node);
-        /// Value* val = pNode->getValue();
-    }
-}
-
 
 void dump_points_to(const SVFModule* svfModule, SVFIR* pag, Andersen* ander, const std::string& filename) {
-    // Extract the directory from the filename
-    fs::path filePath(filename);
-    fs::path dirPath = filePath.parent_path();
-
-    // Create the directory if it does not exist
-    if (!fs::exists(dirPath)) {
-        if (!fs::create_directories(dirPath)) {
-            std::cerr << "Failed to create directory: " << dirPath.string() << std::endl;
-            return;
-        }
-    }
-
     // Open the file for writing
     std::ofstream outFile(filename);
     if (!outFile.is_open()) {
@@ -198,16 +78,27 @@ void dump_points_to(const SVFModule* svfModule, SVFIR* pag, Andersen* ander, con
     outFile.close();
 }
 
+std::vector<std::string> split(const std::string& str, char delimiter) {
+    std::vector<std::string> tokens;
+    std::stringstream ss(str);
+    std::string token;
+    while (std::getline(ss, token, delimiter)) {
+        tokens.push_back(token);
+    }
+    return tokens;
+}
 
 int main(int argc, char ** argv)
 {
+    for (int i = 0; i < argc; ++i) {
+        std::cout << "Argument " << i << ": " << argv[i] << std::endl;
+    }
 
     std::vector<std::string> moduleNameVec;
     moduleNameVec = OptionBase::parseOptions(
             argc, argv, "Whole Program Points-to Analysis", "[options] <input-bitcode...>"
     );
 
-    cout << "DEBUG - The value of Options::WriteAnder() is " << Options::WriteAnder() << endl;
     if (Options::WriteAnder() == "ir_annotator")
     {
         LLVMModuleSet::preProcessBCs(moduleNameVec);
@@ -215,47 +106,40 @@ int main(int argc, char ** argv)
 
     SVFModule* svfModule = LLVMModuleSet::buildSVFModule(moduleNameVec);
 
-    /// Build Program Assignment Graph (SVFIR)
     SVFIRBuilder builder(svfModule);
     SVFIR* pag = builder.build();
 
-    /// Create Andersen's pointer analysis
     Andersen* ander = AndersenWaveDiff::createAndersenWaveDiff(pag);
 
-    /// Query aliases
-    /// aliasQuery(ander,value1,value2);
-
-    /// Print points-to information
-    /// printPts(ander, value1);
-    std::string filename = "/app/output/ex";
-    dump_points_to(svfModule, pag, ander, filename + "_points_to_analysis");
-    // Call Graph
-    PTACallGraph* callgraph = ander->getPTACallGraph();
-    callgraph->dump(filename + "_call_graph");
-
-    cout << endl << "DEBUG - Printing all functions in " << argv[1] << endl;
-    for (const auto& function : svfModule->getFunctionSet()){
-        cout << function->toString() << endl;
+    std::string file_path = argv[argc - 1]; //always given as the last command line parameter
+    std::vector<std::string> parts = split(file_path, '/');
+    const std::string& subdirectory = parts[parts.size() - 2];
+    std::string prefix;
+    std::string suffix = split(parts.back(), '.')[0];
+    if(subdirectory == "llvm")
+    {
+        prefix = "source";
+    }
+    else
+    {
+        std::string lastTwoChars = subdirectory.substr(subdirectory.length() - 2);
+        prefix = lastTwoChars;
+    }
+    cout << "DEBUG - The value of prefix is " << prefix << endl;
+    cout << "DEBUG - The value of suffix is " << suffix << endl;
+    std::string directory = "/app/output/reports/";
+    if (!fs::exists(directory)) {
+        if (!fs::create_directories(directory)) {
+            std::cerr << "Failed to create directory: " << directory << std::endl;
+        }
+    }
+    if (std::string(argv[1]) == "-brief-constraint-graph")
+        dump_points_to(svfModule, pag, ander, directory + prefix + "_points_to_analysis_" + suffix);
+    else {
+        PTACallGraph *callgraph = ander->getPTACallGraph();
+        callgraph->dump(directory + prefix + "_call_graph_" + suffix);
     }
 
-    /// ICFG
-    // ICFG* icfg = pag->getICFG();
-
-    /// Value-Flow Graph (VFG)
-    // VFG* vfg = new VFG(callgraph);
-
-    /// Sparse value-flow graph (SVFG)
-    // SVFGBuilder svfBuilder;
-    // SVFG* svfg = svfBuilder.buildFullSVFG(ander);
-
-    /// Collect uses of an LLVM Value
-    /// traverseOnVFG(svfg, value);
-
-    /// Collect all successor nodes on ICFG
-    /// traverseOnICFG(icfg, value);
-
-    // clean up memory
-    // delete vfg;
     AndersenWaveDiff::releaseAndersenWaveDiff();
     SVFIR::releaseSVFIR();
 
