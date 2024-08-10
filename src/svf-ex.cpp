@@ -125,15 +125,13 @@ int main(int argc, char ** argv)
         std::string lastTwoChars = subdirectory.substr(subdirectory.length() - 2);
         prefix = lastTwoChars;
     }
-    cout << "DEBUG - The value of prefix is " << prefix << endl;
-    cout << "DEBUG - The value of suffix is " << suffix << endl;
     std::string directory = "/app/output/reports/";
     if (!fs::exists(directory)) {
         if (!fs::create_directories(directory)) {
             std::cerr << "Failed to create directory: " << directory << std::endl;
         }
     }
-    if (std::string(argv[1]) == "-brief-constraint-graph")
+    if (std::string(argv[1]) != "-brief-constraint-graph")
         dump_points_to(svfModule, pag, ander, directory + prefix + "_points_to_analysis_" + suffix);
     else {
         PTACallGraph *callgraph = ander->getPTACallGraph();
