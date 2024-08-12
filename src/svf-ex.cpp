@@ -69,7 +69,6 @@ void dump_points_to(const SVFModule* svfModule, SVFIR* pag, Andersen* ander, con
     }
 
 
-    // Write to the file
     //outFile << "SIZE: " << svfModule->getFunctionSet().size() << std::endl;
     int num_functions = svfModule->getFunctionSet().size();
     outFile << "{\n";
@@ -93,11 +92,14 @@ void dump_points_to(const SVFModule* svfModule, SVFIR* pag, Andersen* ander, con
 
 
         int argument_num = 0;
-        //outFile << "\targuments: {\n";
+        outFile << "\t\t\"arguments_set_sizes\": {\n";
         if (pag->getFunArgsMap().find(function) != pag->getFunArgsMap().end()) {
             for (const auto &item: pag->getFunArgsList(function)) {
                 auto pts2 = ander->getPts(item->getId());
-                //outFile << "arg " << argument_num << " pts of function -> size: " << pts2.count() << '\n';
+                outFile << "\t\t\t\"arg_" << argument_num << "\": \"" << pts2.count() << "\"";
+                if (argument_num < pag->getFunArgsList(function).size() - 1)
+                    outFile << ',';
+                outFile << '\n';
 
                 for (const auto &nodeId: pts2) {
                     auto node = pag->getGNode(nodeId);
@@ -106,6 +108,7 @@ void dump_points_to(const SVFModule* svfModule, SVFIR* pag, Andersen* ander, con
                 argument_num++;
             }
         }
+        outFile << "\t\t},\n";
         outFile << "\t\t\"num_arguments\": \"" << argument_num ;
         outFile << "\"\n\t}";
         //outFile << "\t}\n}";
@@ -115,7 +118,6 @@ void dump_points_to(const SVFModule* svfModule, SVFIR* pag, Andersen* ander, con
     }
     outFile << "}\n";
 
-    // Close the file
     outFile.close();
 }
 
