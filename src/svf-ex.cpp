@@ -89,22 +89,25 @@ void dump_points_to(const SVFModule* svfModule, SVFIR* pag, Andersen* ander, con
             auto node = pag->getGNode(nodeId);
             //outFile << node->toString() << ", ";
         }
-        outFile << "\t\t\"result_set_size\": \"" << result_set_size << "\"\n\t}";
+        outFile << "\t\t\"result_set_size\": \"" << result_set_size << "\",\n";
 
-        int i = 0;
+
+        int argument_num = 0;
         //outFile << "\targuments: {\n";
         if (pag->getFunArgsMap().find(function) != pag->getFunArgsMap().end()) {
             for (const auto &item: pag->getFunArgsList(function)) {
                 auto pts2 = ander->getPts(item->getId());
-                //outFile << "arg " << i << " pts of function -> size: " << pts2.count() << '\n';
+                //outFile << "arg " << argument_num << " pts of function -> size: " << pts2.count() << '\n';
 
                 for (const auto &nodeId: pts2) {
                     auto node = pag->getGNode(nodeId);
                     //outFile << "\t\t" << node->toString() << ',\n';
                 }
-                i++;
+                argument_num++;
             }
         }
+        outFile << "\t\t\"num_arguments\": \"" << argument_num ;
+        outFile << "\"\n\t}";
         //outFile << "\t}\n}";
         if(j <= num_functions - 1)
             outFile << ',';
