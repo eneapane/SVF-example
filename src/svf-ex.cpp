@@ -35,11 +35,30 @@
 #include <filesystem>
 #include <vector>
 #include <sstream>
+#include <regex>
+#include <typeinfo>
 
 using namespace llvm;
+
 using namespace std;
 using namespace SVF;
 namespace fs = std::filesystem;
+
+// Function to extract the function name from the given string
+std::string extractFunctionName(const std::string& input) {
+    // Define a regular expression to match the function name
+    std::regex pattern(R"(Function:\s+(\w+))");
+    std::smatch matches;
+
+    // Use regex to search for the function name
+    if (std::regex_search(input, matches, pattern) && matches.size() > 1) {
+        // Return the captured function name
+        return matches[1].str();
+    } else {
+        // Return an empty string if no match is found
+        return "";
+    }
+}
 
 void dump_points_to(const SVFModule* svfModule, SVFIR* pag, Andersen* ander, const std::string& filename) {
     // Open the file for writing
@@ -49,30 +68,49 @@ void dump_points_to(const SVFModule* svfModule, SVFIR* pag, Andersen* ander, con
         return;
     }
 
+
     // Write to the file
+    //outFile << "SIZE: " << svfModule->getFunctionSet().size() << std::endl;
+    int num_functions = svfModule->getFunctionSet().size();
+    outFile << "{\n";
+    int j = 0;
     for (const auto& function : svfModule->getFunctionSet()) {
+        j++;
         NodeID returnNode = pag->getReturnNode(function);
         auto pts = ander->getPts(returnNode);
-        outFile << "return value pts of function " << function->toString() << " -> size: " << pts.count() << '\n';
+//        outFile << "{\n\t" << function->toString() << endl;
+//        outFile << "\treturn_val_set_size: " << pts.count() << '\n';
+//        outFile << "\treturn_val_set: [";
+        outFile << "\t" << "\"num_" << j << "\": " << "{\n\t\t\"name\": \"" << extractFunctionName(function->toString()) << "\",\n";
+
+        int result_set_size = 0;
         for (const auto& nodeId : pts) {
+            result_set_size++;
             auto node = pag->getGNode(nodeId);
-            outFile << "\t" << node->toString() << '\n';
+            //outFile << node->toString() << ", ";
         }
+        outFile << "\t\t\"result_set_size\": \"" << result_set_size << "\"\n\t}";
 
         int i = 0;
+        //outFile << "\targuments: {\n";
         if (pag->getFunArgsMap().find(function) != pag->getFunArgsMap().end()) {
-            for (const auto& item : pag->getFunArgsList(function)) {
+            for (const auto &item: pag->getFunArgsList(function)) {
                 auto pts2 = ander->getPts(item->getId());
-                outFile << "arg " << i << " pts of function -> size: " << pts2.count() << '\n';
-                for (const auto& nodeId : pts2) {
+                //outFile << "arg " << i << " pts of function -> size: " << pts2.count() << '\n';
+
+                for (const auto &nodeId: pts2) {
                     auto node = pag->getGNode(nodeId);
-                    outFile << "\t" << node->toString() << '\n';
+                    //outFile << "\t\t" << node->toString() << ',\n';
                 }
                 i++;
             }
         }
-        outFile << '\n';
+        //outFile << "\t}\n}";
+        if(j <= num_functions - 1)
+            outFile << ',';
+        outFile << endl;
     }
+    outFile << "}\n";
 
     // Close the file
     outFile.close();
