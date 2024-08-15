@@ -80,7 +80,8 @@ void dump_points_to(const SVFModule* svfModule, SVFIR* pag, Andersen* ander, con
 //        outFile << "{\n\t" << function->toString() << endl;
 //        outFile << "\treturn_val_set_size: " << pts.count() << '\n';
 //        outFile << "\treturn_val_set: [";
-        outFile << "\t" << "\"num_" << j << "\": " << "{\n\t\t\"name\": \"" << extractFunctionName(function->toString()) << "\",\n";
+//        outFile << "\t" << "\"num_" << j << "\": " << "{\n\t\t\"name\": \"" << extractFunctionName(function->toString()) << "\",\n";
+        outFile << "\t" << "\"" << extractFunctionName(function->toString()) << "\": " << "{\n";
 
         int result_set_size = 0;
         for (const auto& nodeId : pts) {
