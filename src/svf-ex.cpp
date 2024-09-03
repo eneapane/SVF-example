@@ -247,7 +247,7 @@ int main(int argc, char **argv) {
         dump_points_to(svfModule, pag, ander, directory + prefix + "_points_to_analysis_" + suffix);
         dump_arguments_compare(svfModule, pag, ander, directory + prefix + "_arguments_comparison_" + suffix);
     } else {
-        PTACallGraph *callgraph = ander->getPTACallGraph();
+        CallGraph *callgraph = ander->getCallGraph();
         callgraph->dump(directory + prefix + "_call_graph_" + suffix);
     }
 
