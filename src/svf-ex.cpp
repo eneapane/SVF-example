@@ -45,7 +45,7 @@ using namespace SVF;
 namespace fs = std::filesystem;
 
 // Function to extract the function name from the given string
-std::string extractFunctionName(const std::string& input) {
+std::string extractFunctionName(const std::string &input) {
     std::regex pattern(R"(Function:\s+(\w+))");
     std::smatch matches;
 
@@ -57,14 +57,14 @@ std::string extractFunctionName(const std::string& input) {
 }
 
 
-std::string extractType(const std::string& str) {
+std::string extractType(const std::string &str) {
     std::istringstream iss(str);
     std::string type;
     iss >> type; // Extract the first word, which is the type
     return type;
 }
 
-std::string extractArgName(const std::string& str) {
+std::string extractArgName(const std::string &str) {
     std::istringstream iss(str);
     std::string temp, argName;
 
@@ -78,7 +78,32 @@ std::string extractArgName(const std::string& str) {
     return argName;
 }
 
-void dump_points_to(const SVFModule* svfModule, SVFIR* pag, Andersen* ander, const std::string& filename) {
+std::string extractFileLocation(const std::string &str) {
+    std::string fileKey = "\"file\":";
+    size_t pos = str.find(fileKey);
+
+    if (pos != std::string::npos) {
+        // Move position past the "file": keyword and any whitespace
+        pos += fileKey.length();
+        while (pos < str.length() && isspace(str[pos])) {
+            pos++;
+        }
+
+        // Check if the file path is wrapped in quotes
+        if (str[pos] == '"') {
+            pos++;  // Skip the opening quote
+            size_t endPos = str.find('"', pos);
+            if (endPos != std::string::npos) {
+                return str.substr(pos, endPos - pos);
+            }
+        }
+    }
+
+    // Return empty string if "file": not found or any other error occurs
+    return "";
+}
+
+void dump_points_to(const SVFModule *svfModule, SVFIR *pag, Andersen *ander, const std::string &filename) {
     // Open the file for writing
     std::ofstream outFile(filename);
     if (!outFile.is_open()) {
@@ -91,14 +116,14 @@ void dump_points_to(const SVFModule* svfModule, SVFIR* pag, Andersen* ander, con
     int num_functions = svfModule->getFunctionSet().size();
     outFile << "{\n";
     int j = 0;
-    for (const auto& function : svfModule->getFunctionSet()) {
+    for (const auto &function: svfModule->getFunctionSet()) {
         j++;
         NodeID returnNode = pag->getReturnNode(function);
         auto pts = ander->getPts(returnNode);
         outFile << "\t" << "\"" << extractFunctionName(function->toString()) << "\": " << "{\n";
 
         int result_set_size = 0;
-        for (const auto& nodeId : pts) {
+        for (const auto &nodeId: pts) {
             result_set_size++;
             auto node = pag->getGNode(nodeId);
             //outFile << node->toString() << ", ";
@@ -124,10 +149,10 @@ void dump_points_to(const SVFModule* svfModule, SVFIR* pag, Andersen* ander, con
             }
         }
         outFile << "\t\t},\n";
-        outFile << "\t\t\"num_arguments\": \"" << argument_num ;
+        outFile << "\t\t\"num_arguments\": \"" << argument_num;
         outFile << "\"\n\t}";
         //outFile << "\t}\n}";
-        if(j <= num_functions - 1)
+        if (j <= num_functions - 1)
             outFile << ',';
         outFile << endl;
     }
@@ -136,7 +161,7 @@ void dump_points_to(const SVFModule* svfModule, SVFIR* pag, Andersen* ander, con
     outFile.close();
 }
 
-void dump_arguments_compare(const SVFModule* svfModule, SVFIR* pag, Andersen* ander, const std::string& filename) {
+void dump_arguments_compare(const SVFModule *svfModule, SVFIR *pag, Andersen *ander, const std::string &filename) {
     std::ofstream outFile(filename);
     if (!outFile.is_open()) {
         std::cerr << "Failed to open file: " + filename << std::endl;
@@ -145,7 +170,7 @@ void dump_arguments_compare(const SVFModule* svfModule, SVFIR* pag, Andersen* an
 
     outFile << "{\n";
     int funct_num = 0;
-    for (const auto& function : svfModule->getFunctionSet()) {
+    for (const auto &function: svfModule->getFunctionSet()) {
         funct_num++;
         outFile << "\t" << "\"" << extractFunctionName(function->toString()) << "\": " << "[\n";
         for (int i = 0; i < function->arg_size(); i++) {
@@ -153,7 +178,8 @@ void dump_arguments_compare(const SVFModule* svfModule, SVFIR* pag, Andersen* an
             const SVFType *type = function->getArg(i)->getType();
             const std::string current_argument = function->getArg(i)->toString();
             outFile << "\t\t\t\"type\": \"" << extractType(current_argument) << "\"," << endl;
-            outFile << "\t\t\t\"name\": \"" << extractArgName(current_argument) << "\""<<endl;
+            outFile << "\t\t\t\"name\": \"" << extractArgName(current_argument) << "\"," << endl;
+            outFile << "\t\t\t\"file\": \"" << extractFileLocation(current_argument) << "\"" << endl;
             outFile << "\t\t}";
             if (i < function->arg_size() - 1) {
                 outFile << ", ";
@@ -161,7 +187,7 @@ void dump_arguments_compare(const SVFModule* svfModule, SVFIR* pag, Andersen* an
             outFile << endl;
         }
         outFile << "\t]";
-        if(funct_num <= svfModule->getFunctionSet().size() - 1)
+        if (funct_num <= svfModule->getFunctionSet().size() - 1)
             outFile << ',';
         outFile << endl;
     }
@@ -169,7 +195,7 @@ void dump_arguments_compare(const SVFModule* svfModule, SVFIR* pag, Andersen* an
     outFile.close();
 }
 
-std::vector<std::string> split(const std::string& str, char delimiter) {
+std::vector<std::string> split(const std::string &str, char delimiter) {
     std::vector<std::string> tokens;
     std::stringstream ss(str);
     std::string token;
@@ -179,7 +205,7 @@ std::vector<std::string> split(const std::string& str, char delimiter) {
     return tokens;
 }
 
-int main(int argc, char ** argv) {
+int main(int argc, char **argv) {
     for (int i = 0; i < argc; ++i) {
         std::cout << "Argument " << i << ": " << argv[i] << std::endl;
     }
@@ -220,8 +246,7 @@ int main(int argc, char ** argv) {
     if (std::string(argv[1]) != "-brief-constraint-graph") {
         dump_points_to(svfModule, pag, ander, directory + prefix + "_points_to_analysis_" + suffix);
         dump_arguments_compare(svfModule, pag, ander, directory + prefix + "_arguments_comparison_" + suffix);
-    }
-    else {
+    } else {
         PTACallGraph *callgraph = ander->getPTACallGraph();
         callgraph->dump(directory + prefix + "_call_graph_" + suffix);
     }
