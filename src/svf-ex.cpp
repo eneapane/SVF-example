@@ -116,6 +116,7 @@ void dump_points_to(const SVFModule *svfModule, SVFIR *pag, Andersen *ander, con
     int num_functions = svfModule->getFunctionSet().size();
     outFile << "{\n";
     int j = 0;
+
     for (const auto &function: svfModule->getFunctionSet()) {
         j++;
         NodeID returnNode = pag->getReturnNode(function);
@@ -136,7 +137,7 @@ void dump_points_to(const SVFModule *svfModule, SVFIR *pag, Andersen *ander, con
         if (pag->getFunArgsMap().find(function) != pag->getFunArgsMap().end()) {
             for (const auto &item: pag->getFunArgsList(function)) {
                 auto pts2 = ander->getPts(item->getId());
-                outFile << "\t\t\t\"arg_" << argument_num << "\": \"" << pts2.count() << "\"";
+                outFile << "\t\t\t\"arg_" << argument_num << "\": [\"" << pts2.count() << "\", \"" << extractFileLocation(function->getArg(argument_num)->toString()) << "\"]";
                 if (argument_num < pag->getFunArgsList(function).size() - 1)
                     outFile << ',';
                 outFile << '\n';
